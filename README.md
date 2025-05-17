@@ -4,7 +4,7 @@ This project demonstrates how to interface with and obtain data from an InvenSen
 
 ## Project Overview
 
-The core functionality of this project is to initialize the ICM45686 sensor via SPI communication and then continuously read and print the accelerometer, gyroscope, and temperature data. The project is structured to provide a clear example of integrating a custom sensor driver within the ESP-IDF framework.
+The core functionality of this project is to initialize the ICM45686 sensor via SPI communication and then continuously read and print the accelerometer, gyroscope, and temperature data. The project also configures an external clock signal for the IMU. The project is structured to provide a clear example of integrating a custom sensor driver within the ESP-IDF framework.
 
 ## Hardware Requirements
 
@@ -19,13 +19,14 @@ The core functionality of this project is to initialize the ICM45686 sensor via 
 
 ## Pin Assignments
 
-The project is configured to use the following SPI pins on the ESP32-S3 to communicate with the ICM45686 sensor:
+The project is configured to use the following pins on the ESP32-S3 to communicate with and provide necessary signals to the ICM45686 sensor:
 
-*   **MISO:** GPIO 13
-*   **MOSI:** GPIO 11
-*   **SCLK:** GPIO 12
-*   **CS:** GPIO 10
-*   **IMU Interrupt:** GPIO 14 (configured in `main.c`)
+*   **SPI MISO:** GPIO 13
+*   **SPI MOSI:** GPIO 11
+*   **SPI SCLK:** GPIO 12
+*   **SPI CS:** GPIO 10
+*   **IMU Interrupt (INT):** GPIO 14 (Configured as input with pull-up, rising edge trigger)
+*   **IMU Clock Input (CLK_IN):** GPIO 9 (Configured as a 32 kHz PWM output using LEDC)
 
 Please ensure your hardware connections match these assignments.
 
@@ -47,7 +48,7 @@ You can modify these parameters in the `setup_imu` function within `components/S
 
 The project includes the following main directories:
 
-*   **main:** Contains the main application code (`main.c`) that initializes the SPI bus, sets up the IMU using the custom driver, and enters a loop to read and print sensor data.
+*   **main:** Contains the main application code (`main.c`) that initializes the SPI bus, sets up the IMU using the custom driver, configures the external clock signal, and enters a loop to read and print sensor data. It also includes an interrupt handler for the IMU data ready signal.
 *   **components:** Contains custom components for the project.
     *   **SPI_BUS:** Component for managing the SPI communication interface.
         *   `include/spi.h`: Header file with SPI pin definitions and function declarations.
@@ -65,17 +66,18 @@ The project includes the following main directories:
 4.  **Connect your board:** Connect your ESP32-S3 development board to your computer.
 5.  **Flash and monitor:** Run `idf.py flash monitor`. This will flash the compiled firmware to the board and open a serial monitor to display the output.
 
-The serial output will show the temperature readings from the ICM45686 sensor, as implemented in `main.c`.
+The serial output will show the temperature readings and the time between IMU data ready interrupts (if `IMU_TICK` is defined), as implemented in `main.c`.
 
 ## Customization
 
 *   **Modify Sensor Configuration:** Adjust the sensor parameters (FSR, ODR, power mode, etc.) by modifying the `setup_imu` function in `components/SPI_BUS/src/spi.c`.
-*   **Process Sensor Data:** Modify the `app_main` function in `main/main.c` to process the accelerometer, gyroscope, and temperature data according to your application needs. You could implement filtering, sensor fusion (potentially using the provided AHRS components), or other algorithms.
+*   **Process Sensor Data:** Modify the `app_main` function and `IMU_IRQ_process` task in `main/main.c` to process the accelerometer, gyroscope, and temperature data according to your application needs. You could implement filtering, sensor fusion (potentially using the provided AHRS components), or other algorithms.
+*   **Modify Clock Signal:** Adjust the frequency or duty cycle of the clock signal by modifying the `clk_in_init` function in `main/main.c`.
 *   **Explore Driver Functions:** Refer to the header files and source files in the `components/ICM45686` directory to explore more advanced features of the ICM45686 driver and integrate them into your project.
 
 ## Troubleshooting
 
-*   **Hardware Connections:** Double-check the SPI and interrupt pin connections between the ESP32-S3 and the ICM45686 sensor.
+*   **Hardware Connections:** Double-check the SPI, interrupt, and CLK_IN pin connections between the ESP32-S3 and the ICM45686 sensor.
 *   **ESP-IDF Setup:** Ensure your ESP-IDF environment is correctly set up and the toolchain is accessible.
 *   **Serial Port:** Verify that you have selected the correct serial port for flashing and monitoring.
 
