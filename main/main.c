@@ -14,25 +14,39 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "spi.h"
+
+#define IMU_CLK_IN_PIN  (gpio_num_t)(9)
 #define IMU_INT_PINNUM  (gpio_num_t)(14)
 #define IMU_TICK
 
-float accel_mg[3] = {0};
-float gyro_dps[3] = {0};
-float temp_degc = 0;
-
-#ifdef IMU_INT_PINNUM
-#ifdef IMU_TICK
-volatile uint8_t flag0;
-volatile uint64_t start = 0;
-volatile uint64_t end = 0;
-volatile uint64_t time = 0;
+#ifdef IMU_CLK_IN_PIN
+    #include "driver/ledc.h"
+    #define CLK_IN_TIMER              LEDC_TIMER_0
+    #define CLK_IN_MODE               LEDC_LOW_SPEED_MODE
+    #define CLK_IN_OUTPUT_IO          IMU_CLK_IN_PIN // Define the output GPIO
+    #define CLK_IN_CHANNEL            LEDC_CHANNEL_0
+    #define CLK_IN_DUTY_RES           LEDC_TIMER_8_BIT // Set duty resolution to 13 bits
+    #define CLK_IN_DUTY               (128) // Set duty to 50%. (2 ^ 8) * 50% = 128
+    #define CLK_IN_FREQUENCY          (32000) // Frequency in Hertz. Set frequency at 32 kHz
+    static void clk_in_init(void);
 #endif
+
+#ifdef IMU_INT_PINNUM   
+    #ifdef IMU_TICK
+        volatile uint8_t flag0;
+        volatile uint64_t start = 0;
+        volatile uint64_t end = 0;
+        volatile uint64_t time = 0;
+    #endif
 // 中断事件队列句柄
 static QueueHandle_t imu_queue = NULL;
 static void IRAM_ATTR IMU_IRQ_handler(void* arg);
 void IRAM_ATTR IMU_IRQ_process(void *pvParameters);
 #endif
+
+float accel_mg[3] = {0};
+float gyro_dps[3] = {0};
+float temp_degc = 0;
 
 void app_main(void)
 {
@@ -57,6 +71,11 @@ void app_main(void)
     // 使能中断
     gpio_intr_enable(IMU_INT_PINNUM);
 #endif
+#ifdef IMU_CLK_IN_PIN
+    clk_in_init();
+    ledc_set_duty(CLK_IN_MODE, CLK_IN_CHANNEL, CLK_IN_DUTY);
+    ledc_update_duty(CLK_IN_MODE, CLK_IN_CHANNEL);
+#endif
     while(1)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -72,7 +91,7 @@ void app_main(void)
 }
 
 #ifdef IMU_INT_PINNUM
-static void IRAM_ATTR IMU_IRQ_handler(void* arg)
+static void IMU_IRQ_handler(void* arg)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE, xResult;
     bool ready = true;
@@ -82,7 +101,7 @@ static void IRAM_ATTR IMU_IRQ_handler(void* arg)
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     };
 }
-void IRAM_ATTR IMU_IRQ_process(void *pvParameters)
+void IMU_IRQ_process(void *pvParameters)
 {
     bool res;
     while (1)
@@ -108,5 +127,32 @@ void IRAM_ATTR IMU_IRQ_process(void *pvParameters)
             bsp_IcmGetRawData(accel_mg, gyro_dps,&temp_degc);
         }
     }
+}
+#endif
+
+#ifdef IMU_CLK_IN_PIN
+static void clk_in_init(void)
+{
+    // Prepare and then apply the LEDC PWM timer configuration
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode       = CLK_IN_MODE,
+        .duty_resolution  = CLK_IN_DUTY_RES,
+        .timer_num        = CLK_IN_TIMER,
+        .freq_hz          = CLK_IN_FREQUENCY,  // Set output frequency at 4 kHz
+        .clk_cfg          = LEDC_AUTO_CLK
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+
+    // Prepare and then apply the LEDC PWM channel configuration
+    ledc_channel_config_t ledc_channel = {
+        .speed_mode     = CLK_IN_MODE,
+        .channel        = CLK_IN_CHANNEL,
+        .timer_sel      = CLK_IN_TIMER,
+        .intr_type      = LEDC_INTR_DISABLE,
+        .gpio_num       = IMU_CLK_IN_PIN,
+        .duty           = 0, // Set duty to 0%
+        .hpoint         = 0
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
 }
 #endif
