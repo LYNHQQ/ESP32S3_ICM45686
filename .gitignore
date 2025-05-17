@@ -1,0 +1,20 @@
+# 忽略所有内容
+*
+
+# 排除指定的文件和文件夹
+!/.gitignore
+!/main
+!/main/*
+!/components
+!/components/*
+!/.devcontainer
+!/.devcontainer/*
+!/.vscode
+!/.vscode/*
+!/CMakeLists.txt
+!/CMakeCache.txt
+!/README.md
+!/sdkconfig.ci
+!/sdkconfig.default
+!/CMakeFiles
+!/CMakeFiles/*
