@@ -95,5 +95,3 @@ If you wish to contribute to this project, please follow standard Git practices:
 (Add license information here if applicable, based on the source files' licenses)
 
 ## Acknowledgments
-
-(Add any acknowledgments here, e.g., to Espressif Systems for ESP-IDF, InvenSense for the driver)
