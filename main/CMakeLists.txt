@@ -3,4 +3,5 @@ idf_component_register(SRCS "main.c"
                         spi_flash
                         esp_timer
                         SPI_BUS
+                        MahonyAHRS
                     INCLUDE_DIRS "")
