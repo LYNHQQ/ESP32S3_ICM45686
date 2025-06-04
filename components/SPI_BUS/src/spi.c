@@ -196,29 +196,6 @@ int setup_imu(int use_ln, int accel_en, int gyro_en, void (*IMU_IRQ_handler)(voi
 	rc |= inv_imu_set_pin_config_int(&imu_dev, INV_IMU_INT1, &int_pin_config);
 	SI_CHECK_RC(rc);
 
-	/* Interrupts configuration */
-	memset(&int_config, INV_IMU_DISABLE, sizeof(int_config));
-	int_config.INV_UI_DRDY = INV_IMU_ENABLE;
-	rc |= inv_imu_set_config_int(&imu_dev, INV_IMU_INT1, &int_config);
-	SI_CHECK_RC(rc);
-
-#ifdef IMU_INT_PINNUM
-	if(IMU_IRQ_handler != NULL)
-	{
-		// 配置中断输入引脚
-		gpio_set_direction(IMU_INT_PINNUM, GPIO_MODE_INPUT);
-		gpio_set_pull_mode(IMU_INT_PINNUM, GPIO_PULLUP_ONLY);
-		// 安装GPIO中断服务
-		gpio_install_isr_service(0);
-		// 注册中断处理函数
-		gpio_isr_handler_add(IMU_INT_PINNUM, IMU_IRQ_handler, NULL);
-		// 配置为下降沿触发中断
-		gpio_set_intr_type(IMU_INT_PINNUM, GPIO_INTR_POSEDGE);
-		// 配置中断触发方式
-		gpio_intr_enable(IMU_INT_PINNUM);
-	}
-#endif
-
 
 #if INV_IMU_CLKIN_SUPPORTED
 	/* CLKIN configuration */
@@ -231,8 +208,8 @@ int setup_imu(int use_ln, int accel_en, int gyro_en, void (*IMU_IRQ_handler)(voi
 #endif	
 
 	/* Set FSR */
-	rc |= inv_imu_set_accel_fsr(&imu_dev, ACCEL_CONFIG0_ACCEL_UI_FS_SEL_32_G);
-	rc |= inv_imu_set_gyro_fsr(&imu_dev, GYRO_CONFIG0_GYRO_UI_FS_SEL_4000_DPS);
+	rc |= inv_imu_set_accel_fsr(&imu_dev, ACCEL_CONFIG0_ACCEL_UI_FS_SEL_16_G);
+	rc |= inv_imu_set_gyro_fsr(&imu_dev, GYRO_CONFIG0_GYRO_UI_FS_SEL_2000_DPS);
 	SI_CHECK_RC(rc);
 
 	/* Set ODR */
@@ -267,7 +244,28 @@ int setup_imu(int use_ln, int accel_en, int gyro_en, void (*IMU_IRQ_handler)(voi
 //		discard_accel_samples = (ACC_STARTUP_TIME_US / 20000) + 1;
 //	if (gyro_en)
 //		discard_gyro_samples = (GYR_STARTUP_TIME_US / 20000) + 1;
-
+	/* Interrupts configuration */
+	memset(&int_config, INV_IMU_DISABLE, sizeof(int_config));
+	int_config.INV_UI_DRDY = INV_IMU_ENABLE;
+	rc |= inv_imu_set_config_int(&imu_dev, INV_IMU_INT1, &int_config);
+	SI_CHECK_RC(rc);
+	vTaskDelay(pdMS_TO_TICKS(100));
+#ifdef IMU_INT_PINNUM
+	if(IMU_IRQ_handler != NULL)
+	{
+		// 配置中断输入引脚
+		gpio_set_direction(IMU_INT_PINNUM, GPIO_MODE_INPUT);
+		gpio_set_pull_mode(IMU_INT_PINNUM, GPIO_PULLUP_ONLY);
+		// 安装GPIO中断服务
+		gpio_install_isr_service(0);
+		// 注册中断处理函数
+		gpio_isr_handler_add(IMU_INT_PINNUM, IMU_IRQ_handler, NULL);
+		// 配置为下降沿触发中断
+		gpio_set_intr_type(IMU_INT_PINNUM, GPIO_INTR_POSEDGE);
+		// 配置中断触发方式
+		gpio_intr_enable(IMU_INT_PINNUM);
+	}
+#endif
 	SI_CHECK_RC(rc);
 	return rc;
 }
@@ -282,9 +280,9 @@ int IRAM_ATTR bsp_IcmGetRawData(float accel_mg[3], float gyro_dps[3], float *tem
 	accel_mg[0] = (float)(d.accel_data[0] * 16 /* mg */) / 32.768;
 	accel_mg[1] = (float)(d.accel_data[1] * 16 /* mg */) / 32.768;
 	accel_mg[2] = (float)(d.accel_data[2] * 16 /* mg */) / 32.768;
-	gyro_dps[0] = (float)(d.gyro_data[0] * 4000 /* dps */) / 32768.0;
-	gyro_dps[1] = (float)(d.gyro_data[1] * 4000 /* dps */) / 32768.0;
-	gyro_dps[2] = (float)(d.gyro_data[2] * 4000 /* dps */) / 32768.0;
+	gyro_dps[0] = (float)(d.gyro_data[0] * 2000 /* dps */) / 32768.0;
+	gyro_dps[1] = (float)(d.gyro_data[1] * 2000 /* dps */) / 32768.0;
+	gyro_dps[2] = (float)(d.gyro_data[2] * 2000 /* dps */) / 32768.0;
 	*temp_degc  = (float)25 + ((float)d.temp_data / 128);
 	return 0;
 }
